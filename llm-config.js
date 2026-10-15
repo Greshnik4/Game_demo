@@ -3,7 +3,7 @@ window.LLM_CONFIGS = [
   {
     "name": "Atria (облако)",
     "endpoint": "https://api.atria-asi.ai/v1/responses",
-    "apiKey": "atr_4Hl-WHSdhXy4YIfB3LOeqwKVIPlCZwiy",
+    "apiKey": "",
     "model": "Atria-Dawn-Preview"
   },
   {
