@@ -83,6 +83,7 @@ function arrivePlayer(){
     if(Math.hypot(player.x-(fx+1), player.y-(fy+1)) < 4.4) openGroundMenu(fx,fy);
   }
 }
+const doorsWish = {}; // "x,y" -> true/false: открыта ли дверь должна быть в этом кадре
 function updateDoors(dt){
   // двери: плавно открываются, когда к ним подходит игрок или любой NPC,
   // и закрываются следом
