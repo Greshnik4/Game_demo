@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Веронт — текстовая LLM-РПГ</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Handjet:wght@400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <h1 class="px">ВЕРОНТ</h1>
+  <p class="sub">деревня у старого тракта</p>
+  <p id="hudGold" class="px">💰 0</p>
+</div>
+<div id="help"><b>WASD</b> — идти · <b>ЛКМ</b> — идти к точке / к NPC · клик по сундуку или шкафу рядом — содержимое · <b>E</b> — говорить · <b>J</b> — журнал · <b>Esc</b> — закрыть</div>
+<button id="btnSettings" class="iconbtn" title="Настройки LLM">⚙</button>
+<button id="btnJournal" class="iconbtn" title="Журнал квестов (J)">📜</button>
+<button id="btnInv" class="iconbtn" title="Инвентарь">🎒</button>
+
+<div id="journal" class="frame hidden">
+  <div id="journalHead" class="px">Журнал квестов<button id="journalClose" title="Закрыть">✕</button></div>
+  <div id="journalList"></div>
+</div>
+<div id="toast" class="hidden"></div>
+<div id="itemTip" class="hidden"></div>
+<div id="ctxMenu" class="hidden"></div>
+<div id="invBar"></div>
+
+<div id="prompt" class="hidden">Нажми <span class="key">E</span> — поговорить с <b id="promptName"></b></div>
+
+<div id="chat" class="frame hidden">
+  <div id="chatHead">
+    <span id="chatName" class="px"></span><span id="chatRole"></span>
+    <button id="chatInvBtn" title="Инвентарь собеседника">🎒</button>
+    <button id="chatClose" title="Закрыть (Esc)">✕</button>
+  </div>
+  <div id="chatInv"></div>
+  <div id="chatLog"></div>
+  <div id="chatTyping" class="hidden">думает…</div>
+  <form id="chatForm">
+    <input id="chatInput" placeholder="Скажи что-нибудь…" autocomplete="off" maxlength="500">
+    <button type="submit" class="btn px">Сказать</button>
+  </form>
+</div>
+
+<div id="settings" class="hidden">
+  <div id="settingsBox" class="frame">
+    <h2 class="px">Подключение LLM</h2>
+    <label>Профиль</label>
+    <select id="setProfile"></select>
+    <label>Base URL (OpenAI-совместимый, напр. http://localhost:11434/v1)</label>
+    <input id="setBase">
+    <label>Модель (для Ollama — llama3.1, для OpenRouter — любая)</label>
+    <input id="setModel">
+    <label>API-ключ (не нужен для локального Ollama)</label>
+    <input id="setKey" type="password">
+    <label>Уровень размышлений модели</label>
+    <select id="setReasoning">
+      <option value="">по умолчанию модели</option>
+      <option value="none">выключен</option>
+      <option value="minimal">минимальный</option>
+      <option value="low">низкий</option>
+      <option value="medium">средний</option>
+      <option value="high">высокий</option>
+    </select>
+    <div id="settingsRow">
+      <button id="setTest">Проверить связь</button>
+      <button id="setSave" class="primary">Сохранить</button>
+    </div>
+    <div id="settingsStatus"></div>
+  </div>
+</div>
+
+<div id="invWin" class="hidden">
+  <div id="invBox" class="frame">
+    <button id="invClose" title="Закрыть (Esc)">✕</button>
+    <div id="invCols">
+      <div class="invSide">
+        <h4 id="invOtherName"></h4>
+        <div class="invCol"><div id="invOther" class="invGrid"></div></div>
+      </div>
+      <div class="invSide">
+        <h4>Мои предметы <span id="invGold"></span></h4>
+        <div class="invCol"><div id="invMe" class="invGrid"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="llm-config.js"></script>
+<script src="js/data/objects.js"></script>
+<script src="js/data/map.js"></script>
+<script src="js/map.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/quests.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
