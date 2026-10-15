@@ -411,122 +411,134 @@ function drawTree(o, time){
 }
 
 /**
- * Дверь: 2×1 в тонкой стене. Перспектива, не вид сверху: створка на левой
- * петле «отваливается» на зрителя — горизонталь укорачивается (cos), ближний
- * край опускается ниже линии петель и становится крупнее (ниже — ближе).
- * Полотно рисуется ПОВЕРХ проёма всё время анимации: при a→0 оно точно
- * совпадает с проёмом, поэтому «дыра» никогда не опережает створку.
+ * Дверь: 2×1 в тонкой стене. Стиль — «дверь съезжает в толщу стены»:
+ * закрытая створка полностью заполняет проём (щелей нет), при открытии
+ * полотно уходит ВЛЕВО вдоль стены и прячется за боковую стойку, справа
+ * остаётся тёплый свет прихожей. Никаких «открытых дыр раньше створки».
  * @param {object} o объект двери; состояние берётся из doorAnim (0..1) и doorLocked
- * @param {number} time секунды с запуска (в расчёте не участвует — анимация идёт через doorAnim)
  */
 function drawDoor(o, time){
   const x = o.x*TILE, y = o.y*TILE;
   const a = doorAnim[o.x+","+o.y]||0, locked = doorLocked(o.x,o.y);
-  // easing: плавный старт/финиш вместо линейного «щелчка»
-  const ea = a*a*(3-2*a);
-  const quad = (x1,y1,x2,y2,x3,y3,x4,y4) => {
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
-    ctx.lineTo(x3,y3); ctx.lineTo(x4,y4); ctx.closePath(); ctx.fill();
-  };
+  const ea = a*a*(3-2*a);              // ease-in-out: мягкие старт и финиш
+  const INX = x+5, INTOP = y+3, INW = 22, INH = 10; // внутренний проём
   // стена вокруг проёма — как соседние тайлы стены, но без балок поперёк двери
   ctx.fillStyle = PAL.plaster; ctx.fillRect(x,y,2*TILE,TILE);
   ctx.fillStyle = PAL.plasterHi; ctx.fillRect(x,y,2*TILE,1);
   ctx.fillStyle = PAL.beam;
-  ctx.fillRect(x,y+TILE-3,2*TILE,3);                        // нижняя обвязка
+  ctx.fillRect(x,y+TILE-3,2*TILE,3);                          // нижняя обвязка
   ctx.fillRect(x,y,2,TILE); ctx.fillRect(x+2*TILE-2,y,2,TILE); // боковые стойки
   ctx.fillStyle = PAL.beamLo; ctx.fillRect(x,y+TILE-1,2*TILE,1);
-  // коробка проёма
-  ctx.fillStyle = PAL.beamLo; ctx.fillRect(x+3,y+2,26,12);
-  // проём: за дверью — тёмная прихожая со светлым полом;
-  // чем шире открыто, тем больше тёплого света «выливается» наружу
-  if(a > 0.02){
-    ctx.fillStyle = "#2b1f12"; ctx.fillRect(x+5,y+3,22,10);
-    ctx.fillStyle = PAL.floor[0]; ctx.fillRect(x+5,y+7,22,6);       // пол за дверью
-    ctx.fillStyle = PAL.floor[1]; ctx.fillRect(x+5,y+10,22,1);
-    ctx.fillStyle = "rgba(255,220,150,"+(0.10+ea*0.18).toFixed(3)+")";
-    ctx.fillRect(x+5,y+3,22,4);                                     // свет изнутри
-    ctx.fillStyle = "rgba(0,0,0,.30)"; ctx.fillRect(x+5,y+3,22,2);  // тень притолоки
-  } else {
-    ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+5,y+3,22,10);        // закрыто — глубокая тень
+  ctx.fillStyle = PAL.beamLo; ctx.fillRect(x+3,y+2,26,12);    // коробка проёма
+  // 1) прихожая: тёмная глубина + светлый пол + тёплый свет, струящийся к порогу
+  ctx.fillStyle = "#241a0f"; ctx.fillRect(INX,INTOP,INW,INH);
+  ctx.fillStyle = PAL.floor[1]; ctx.fillRect(INX,INTOP+7,INW,3);       // пол в тени
+  ctx.fillStyle = PAL.floor[0]; ctx.fillRect(INX+8,INTOP+7,INW-8,3);   // пол на свету
+  const glow = 0.12 + ea*0.30;                                         // чем шире вход — тем больше света
+  ctx.fillStyle = "rgba(255,214,140,"+glow.toFixed(3)+")";
+  ctx.beginPath();                                                     // трапеция света у порога
+  ctx.moveTo(INX+6, INTOP); ctx.lineTo(INX+INW, INTOP);
+  ctx.lineTo(INX+INW, INTOP+INH); ctx.lineTo(INX+2, INTOP+INH); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(INX,INTOP,INW,2);    // тень притолоки
+  if(!locked && ea < 0.999){
+    ctx.fillStyle = "rgba(255,224,150,.10)";                           // отблеск света на траве перед дверью
+    ctx.fillRect(INX+Math.round(INW*(1-ea)), INTOP+INH, Math.max(2, Math.round(INW*ea*0.5)), 3);
   }
-  // геометрия створки: левый край — на петлях, правый уходит к зрителю
-  const th = ea * 1.15;                     // до ~66°: читается «распахнута», а не «схлопнута»
-  const cs = Math.cos(th), sn = Math.sin(th);
-  const hx = x+5, hy0 = y+3, hy1 = y+13, L = 22;
-  const fx = hx + L*cs;                 // свободный край: укорочен перспективой
-  const fy0 = hy0 + L*sn*0.55;          // его верх опущен — полотно «валится» на зрителя
-  const fy1 = hy1 + L*sn*1.15;          // низ уходит сильнее: ближний край крупнее
-  // тень полотна на траве перед порогом
-  ctx.fillStyle = "rgba(0,0,0,.18)";
-  quad(hx+2, hy0+5, fx+3, fy0+5, fx+3, fy1+5, hx+2, hy1+5);
-  // контур и полотно
-  ctx.fillStyle = PAL.woodDk;
-  quad(hx-1, hy0-1, fx+1, fy0-1, fx+1, fy1+1, hx-1, hy1+1);
-  ctx.fillStyle = PAL.doorFace;
-  quad(hx, hy0, fx, fy0, fx, fy1, hx, hy1);
-  // светлая верхняя кромка — грань полотна ловит свет
-  ctx.fillStyle = PAL.doorHi;
-  quad(hx, hy0, fx, fy0, fx, fy0+2, hx, hy0+2);
-  // вертикальные доски: две планки растягиваются вместе с полотном
-  ctx.fillStyle = PAL.doorPlank;
-  for(const f of [0.34, 0.67]){
-    quad(hx + L*f - 0.5, hy0, hx + L*f + 0.5, hy0,
-         hx + L*f*cs + 0.5, hy0 + L*sn*0.55, hx + L*f*cs - 0.5, hy0 + L*sn*0.55);
-    quad(hx + L*f - 0.5, hy1, hx + L*f + 0.5, hy1,
-         hx + L*f*cs + 0.5, hy1 + L*sn*1.15, hx + L*f*cs - 0.5, hy1 + L*sn*1.15);
+  // 2) полотно: сдвигается влево, последняя треть уходит за левую стойку (эффект «слайдера»)
+  const visW = Math.max(0, Math.round(INW*(1 - Math.min(1, ea*1.12))));
+  if(visW >= 1){
+    const dx0 = INX + (INW - visW);          // правый край полотна = граница света
+    ctx.fillStyle = PAL.woodDk; ctx.fillRect(dx0-1, INTOP-1, visW+2, INH+2); // контур
+    ctx.fillStyle = PAL.doorFace; ctx.fillRect(dx0, INTOP, visW, INH);
+    ctx.fillStyle = PAL.doorHi;  ctx.fillRect(dx0, INTOP, visW, 1);          // светлая верхняя кромка
+    ctx.fillStyle = PAL.doorPlank;                                            // вертикальные доски
+    for(const f of [0.3, 0.65]) if(visW > 6) ctx.fillRect(Math.round(dx0+visW*f), INTOP, 1, INH);
+    ctx.fillStyle = PAL.doorLoShade || "rgba(0,0,0,.22)";
+    ctx.fillRect(dx0, INTOP+INH-2, visW, 2);                                  // тень у низа полотна
+    if(visW >= 6){                                                            // ручка только когда за неё есть что держаться
+      ctx.fillStyle = PAL.goldLo; ctx.fillRect(dx0+visW-4, INTOP+4, 3, 2);
+      ctx.fillStyle = PAL.gold;   ctx.fillRect(dx0+visW-4, INTOP+4, 2, 1);
+    }
+  } else if(ea > 0.05){
+    // полотно полностью спрятано в стене — виден только торец у стойки
+    ctx.fillStyle = PAL.woodLo; ctx.fillRect(INX-2, INTOP, 2, INH);
   }
-  // металлические петли на стороне шарнира — деталь, дающая масштаб
-  ctx.fillStyle = PAL.iron[0];
-  quad(hx, hy0,   hx+5, hy0,   hx+5*cs, hy0 + 5*sn*0.55, hx, hy0+2);
-  quad(hx, hy1-2, hx+5, hy1-2, hx+5*cs, hy1-2 + 5*sn*1.15, hx, hy1);
-  // ручка-шишка на свободном краю (скользит вместе с ним)
-  const knobY = (fy0+fy1)/2;
-  ctx.fillStyle = PAL.goldLo; ctx.fillRect(Math.round(fx)-5, Math.round(knobY)-1, 3, 3);
-  ctx.fillStyle = PAL.gold;   ctx.fillRect(Math.round(fx)-5, Math.round(knobY)-1, 2, 2);
-  if(locked && a<.05){ // железная полоса с висячим замком — дверь заперта
-    ctx.fillStyle = PAL.iron[0]; ctx.fillRect(x+5,y+7,22,3);
-    ctx.fillStyle = PAL.iron[1]; ctx.fillRect(x+14,y+7,4,6);
-    ctx.fillStyle = PAL.gold; ctx.fillRect(x+15,y+9,2,2);
+  // 3) железная полоса с висячим замком — дверь заперта (поверх закрытого полотна)
+  if(locked && a<.05){
+    ctx.fillStyle = PAL.iron[0]; ctx.fillRect(INX,INTOP+4,INW,3);
+    ctx.fillStyle = PAL.iron[1]; ctx.fillRect(x+14,INTOP+4,4,6);
+    ctx.fillStyle = PAL.gold; ctx.fillRect(x+15,INTOP+6,2,2);
   }
   ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+5,y+TILE-GROUND_OFF,22,1); // порог по линии земли
 }
 /**
- * Забор: один объект на весь ряд — штакетники с заострёнными верхами,
- * две перекладины со светлой гранью, столб в каждом тайле.
- * Ряд может быть горизонтальным (w×1) или вертикальным (1×h).
+ * Забор: один объект на весь ряд. Стиль — штакетник «в три четверти»:
+ * доска с торцом-грани, скошенная верхушка, две перекладины в прорезях,
+ * тень у основания каждой доски. Горизонтальный ряд (w×1) — вид спереди;
+ * вертикальный (1×h) — тот же штакетник, повёрнутый: видимые грани досок
+ * идут лесенкой по глубине (южнее доска — ближе к зрителю), перекладины
+ * превращаются в поперечные бруски вдоль ряда.
  * @param {object} o объект забора
  */
 function drawFence(o){
   const x = o.x*TILE, y = o.y*TILE, w = o.w*TILE, h = o.h*TILE;
   if(o.h === 1){
+    // ---- горизонтальный ряд: вид спереди ----
     ctx.fillStyle = "rgba(0,0,0,.18)";
     ctx.beginPath(); ctx.ellipse(x+w/2, y+h-GROUND_OFF, w*0.45, 4, 0, 0, 7); ctx.fill();
-    // штакетники: тёмный контур → лицо → светлая левая грань → скошенный верх
     for(let i=0; i<o.w; i++){
-      const px = x+i*TILE+5;
+      const px = x+i*TILE+5;                       // левый край доски
+      // тень у основания
+      ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fillRect(px-1, y+h-GROUND_OFF-2, 9, 2);
+      // торец-грань справа (доска повёрнута к свету левой стороной)
+      ctx.fillStyle = PAL.woodLo;  ctx.fillRect(px+6, y+3, 2, h-GROUND_OFF-3);
+      // лицо доски + контур
       ctx.fillStyle = PAL.woodDk;  ctx.fillRect(px-1, y+3, 8, h-GROUND_OFF-3);
       ctx.fillStyle = PAL.wood;    ctx.fillRect(px,   y+4, 6, h-GROUND_OFF-4);
       ctx.fillStyle = PAL.woodHi;  ctx.fillRect(px,   y+4, 1, h-GROUND_OFF-4);
-      ctx.fillStyle = PAL.woodLo;  ctx.fillRect(px+5, y+4, 1, h-GROUND_OFF-4);
+      // скошенная верхушка: ступеньки 4→2 пикселя
+      ctx.fillStyle = PAL.woodDk;  ctx.fillRect(px,   y+2, 6, 2); ctx.fillRect(px+1, y+1, 4, 1);
       ctx.fillStyle = PAL.wood;    ctx.fillRect(px+1, y+2, 4, 2); ctx.fillRect(px+2, y+1, 2, 1);
+      ctx.fillStyle = PAL.woodHi;  ctx.fillRect(px+1, y+2, 1, 1);
     }
     // перекладины поверх штакетников, со светлой и теневой гранями
     ctx.fillStyle = PAL.woodDk; ctx.fillRect(x, y+5, w, 5); ctx.fillRect(x, y+11, w, 5);
     ctx.fillStyle = PAL.wood;   ctx.fillRect(x, y+6, w, 3); ctx.fillRect(x, y+12, w, 3);
     ctx.fillStyle = PAL.woodHi; ctx.fillRect(x, y+6, w, 1); ctx.fillRect(x, y+12, w, 1);
+    ctx.fillStyle = PAL.woodLo; ctx.fillRect(x, y+8, w, 1); ctx.fillRect(x, y+14, w, 1);
   } else {
+    // ---- вертикальный ряд: штакетник повёрнут, смотрим «с торца» ----
+    // Каждая доска стоит поперёк взгляда: её лицо — узкая вертикальная полоса,
+    // а ширина ряда (16px) читается как глубина. Южнее доска — ближе к нам,
+    // поэтому рисуем С СЕВЕРА НА ЮГ и каждая следующая перекрывает предыдущую
+    // лишь слегка: получается лесенка острых верхов и сплошной частокол.
+    const dx = 3;                                  // шаг досок по глубине
     ctx.fillStyle = "rgba(0,0,0,.18)";
-    ctx.beginPath(); ctx.ellipse(x+w/2, y+h-GROUND_OFF, w*0.45, 4, 0, 0, 7); ctx.fill();
-    for(let i=0; i<o.h; i++){                                // поперечные столбы
-      const py = y+i*TILE+5;
-      ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+3, py-1, w-6, 8);
-      ctx.fillStyle = PAL.wood;   ctx.fillRect(x+4, py, w-8, 6);
-      ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+4, py, w-8, 1);
-      ctx.fillStyle = PAL.woodLo; ctx.fillRect(x+4, py+5, w-8, 1);
+    ctx.beginPath(); ctx.ellipse(x+w/2, y+h-GROUND_OFF, Math.max(6,w*0.45), 4, 0, 0, 7); ctx.fill();
+    for(let i=0; i<o.h; i++){
+      const py = y + i*dx;                         // верх этой доски
+      const bottom = y + h - GROUND_OFF;           // общая линия земли
+      const bx = x + 2;                            // все доски в одной коллизионной колонне
+      // основание: пятно земли под доской
+      ctx.fillStyle = "rgba(0,0,0,.20)"; ctx.fillRect(bx-1, bottom-2, 12, 2);
+      // торец (правая грань, обращена от света)
+      ctx.fillStyle = PAL.woodLo; ctx.fillRect(bx+8, py+2, 3, bottom-py-2);
+      // контур + лицо
+      ctx.fillStyle = PAL.woodDk; ctx.fillRect(bx-1, py+1, 10, bottom-py-1);
+      ctx.fillStyle = PAL.wood;   ctx.fillRect(bx,   py+2, 8, bottom-py-2);
+      ctx.fillStyle = PAL.woodHi; ctx.fillRect(bx,   py+2, 2, bottom-py-2);
+      // скошенный верх: чем доска «ближе», тем ниже скос начинается
+      ctx.fillStyle = PAL.woodDk; ctx.fillRect(bx, py, 8, 2);
+      ctx.fillStyle = PAL.wood;   ctx.fillRect(bx+1, py, 6, 2); ctx.fillRect(bx+2, py-1, 4, 1);
+      ctx.fillStyle = PAL.woodHi; ctx.fillRect(bx+1, py, 1, 1);
     }
-    ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+4, y, 5, h-GROUND_OFF); ctx.fillRect(x+10, y, 5, h-GROUND_OFF);
-    ctx.fillStyle = PAL.wood;   ctx.fillRect(x+5, y, 3, h-GROUND_OFF); ctx.fillRect(x+11, y, 3, h-GROUND_OFF);
-    ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+5, y, 1, h-GROUND_OFF); ctx.fillRect(x+11, y, 1, h-GROUND_OFF);
+    // поперечные бруски (это «торцы» двух горизонтальных перекладин):
+    // два тёмных среза, идущих сквозь ряд с лёгким смещением по глубине
+    for(const off of [5, 11]){
+      ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+1, y+off, w-2, 4);
+      ctx.fillStyle = PAL.wood;   ctx.fillRect(x+1, y+off+1, w-2, 2);
+      ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+1, y+off+1, w-2, 1);
+    }
   }
 }
 /** Наковальня на деревянной колоде; низ — по общей линии земли. */
@@ -600,38 +612,110 @@ function drawShelf(o){
 }
 
 /**
- * Человечек (игрок или NPC): толстый тёмный контур, шагающие ноги, пояс,
- * руки болтаются в противофазе, глаза смотрят по направлению взгляда.
+ * Человечек (игрок или NPC). Три вида: анфас (dir down), со спины (up) и
+ * РЕЗКИЙ ПРОФИЛЬ (left/right) — именно при движении вбок персонаж должен
+ * читаться лучше всего: развёрнутый корпус, одна рука и нога с явным замахом,
+ * лицо смотрит по ходу (глаз и нос у края головы), волосы собраны в узел
+ * с противоположной стороны. Ноги шагают «ножницами» вокруг бедра, ступни
+ * разворачиваются по направлению движения.
  * @param {object} e сущность: x,y — тайловые координаты, dir, moving, anim (фаза шага)
- * @param {string} shirt цвет рубашки
- * @param {string} skin цвет кожи
- * @param {string} hair цвет волос
- * @param {boolean} isPlayer рисовать ли шляпу игрока
  */
 function drawHuman(e, shirt, skin, hair, isPlayer){
   const px = e.x*TILE, py = e.y*TILE;
-  const step = e.moving ? Math.sin(e.anim||0)*2 : 0;
+  const side = (e.dir==="left" || e.dir==="right");
+  const face = e.dir==="left" ? -1 : 1;         // куда «смотрит» профиль
+  const step = e.moving ? Math.sin(e.anim||0) : 0;       // -1..1 фаза шага
   const bob  = e.moving ? Math.abs(Math.sin(e.anim||0)) : 0;
   const top  = py - bob;
   // тень «прижата» к ногам
   ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath();
-  ctx.ellipse(px, py+11, 10, 4, 0, 0, 7); ctx.fill();
+  ctx.ellipse(px, py+11, side?7:10, 4, 0, 0, 7); ctx.fill();
+
+  if(side){
+    /* ---------------- ПРОФИЛЬ ---------------- */
+    const swing = step*4;                        // замах ноги, px
+    // задняя нога (дальше от зрителя — темнее и уже)
+    ctx.fillStyle = PAL.outline;
+    ctx.fillRect(px-2-face*swing*0.5, top+2-Math.max(0,-swing)*0.5, 5, 9);
+    ctx.fillStyle = "#3a2d1c";
+    ctx.fillRect(px-1-face*swing*0.5, top+3-Math.max(0,-swing)*0.5, 3, 6);
+    ctx.fillStyle = "#241b10";                               // ботинок задней ноги
+    ctx.fillRect(px-2-face*swing*0.5+face, top+9-Math.max(0,-swing)*0.5, 4, 2);
+    // передняя нога: штанина наклоняется по ходу замаха, ступня смотрит вперёд
+    ctx.fillStyle = PAL.outline;
+    ctx.fillRect(px-2+face*swing*0.5-1, top+1, 6, 10-Math.max(0,swing)*0.5);
+    ctx.fillStyle = "#4a3a26";
+    ctx.fillRect(px-1+face*swing*0.5-1, top+2, 4, 7-Math.max(0,swing)*0.5);
+    ctx.fillStyle = "#2e2418";
+    ctx.fillRect(px-2+face*(swing*0.5+2), top+9, 6, 3);      // ступня вытянута по направлению
+    ctx.fillStyle = "#161009";
+    ctx.fillRect(px-2+face*(swing*0.5+2), top+11, 6, 1);     // подошва
+    // задняя рука: маячит в противофазе, прячется за корпус
+    ctx.fillStyle = PAL.outline;
+    ctx.fillRect(px-1-face*swing*0.7, top-6+Math.round(step*1), 4, 9);
+    ctx.fillStyle = shirt;
+    ctx.fillRect(px-face*swing*0.7, top-5+Math.round(step*1), 2, 5);
+    ctx.fillStyle = skin;
+    ctx.fillRect(px-face*swing*0.7, top+2+Math.round(step*1), 2, 2); // кисть
+    // корпус: боковой силуэт — грудь по ходу, спина сзади; скруглён сверху
+    ctx.fillStyle = PAL.outline; ctx.fillRect(px-6, top-9, 12, 14);
+    ctx.fillStyle = shirt;       ctx.fillRect(px-5, top-8, 10, 12);
+    ctx.fillStyle = "rgba(255,255,255,.10)";                 // свет на «груди»
+    ctx.fillRect(px + (face>0?1:-4), top-8, 3, 10);
+    ctx.fillStyle = "rgba(0,0,0,.22)";                       // тень на спине
+    ctx.fillRect(px + (face>0?-5:3), top-8, 2, 12);
+    ctx.fillStyle = "rgba(0,0,0,.30)"; ctx.fillRect(px-5, top+1, 10, 3); // пояс
+    if(isPlayer){ ctx.fillStyle = PAL.gold; ctx.fillRect(px + (face>0?2:-3), top+1, 2, 3); }
+    // голова в профиле: кожа, затылок под волосами, «подбородок» выступает по ходу
+    ctx.fillStyle = PAL.outline; ctx.fillRect(px-6, top-20, 12, 13);
+    ctx.fillStyle = skin;        ctx.fillRect(px-5, top-19, 10, 11);
+    ctx.fillRect(px + face*4, top-14, 2, 3);                 // нос/подбородок у края
+    ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(px - face*5, top-19, 2, 11); // тень дальней стороны
+    // волосы: масса на затылке + чёлка у лица + узел
+    ctx.fillStyle = hair;
+    ctx.fillRect(px-6, top-21, 12, 5);                       // верх
+    ctx.fillRect(px - face*5, top-16, 3, 7);                 // затылок
+    ctx.fillRect(px + face*3, top-17, 2, 2);                 // чёлка
+    ctx.fillStyle = PAL.outline;
+    ctx.fillRect(px - face*6, top-13, 2, 3);                 // контур узла
+    ctx.fillStyle = hair;
+    ctx.fillRect(px - face*6, top-12, 2, 2);
+    // глаз — один, ближе к краю лица; моргает в конце цикла шага
+    const blink = e.moving && step > 0.92;
+    ctx.fillStyle = "#2a2016";
+    ctx.fillRect(px + face*2, top-13, 2, blink?1:2);
+    ctx.fillStyle = "#f4ead8";
+    if(!blink) ctx.fillRect(px + face*2, top-13, 1, 1);
+    if(isPlayer){                                            // шляпа следопыта: поля торчат вперёд и назад
+      ctx.fillStyle = PAL.outline;
+      ctx.fillRect(px-9, top-22, 18, 3); ctx.fillRect(px-4, top-27, 8, 6);
+      ctx.fillStyle = "#6d5233";
+      ctx.fillRect(px-8, top-22, 16, 2); ctx.fillRect(px-3, top-26, 6, 5);
+      ctx.fillStyle = "#8a6a44";
+      ctx.fillRect(px-3, top-26, 6, 1); ctx.fillRect(px-8, top-22, 16, 1);
+      ctx.fillStyle = PAL.goldLo; ctx.fillRect(px-3, top-21, 6, 1);
+    }
+    return;
+  }
+
+  /* ---------------- АНФАС / СО СПИНЫ ---------------- */
+  const st = e.moving ? Math.sin(e.anim||0)*2 : 0;
   // ноги: штанина → ботинок со светлой подошвой; при замахе нога короче
   ctx.fillStyle = PAL.outline;
-  ctx.fillRect(px-6, top+1+step, 5, 10-step); ctx.fillRect(px+1, top+1-step, 5, 10+step);
+  ctx.fillRect(px-6, top+1+st, 5, 10-st); ctx.fillRect(px+1, top+1-st, 5, 10+st);
   ctx.fillStyle = "#4a3a26";
-  ctx.fillRect(px-5, top+2+step, 3, 7-step); ctx.fillRect(px+2, top+2-step, 3, 7+step);
+  ctx.fillRect(px-5, top+2+st, 3, 7-st); ctx.fillRect(px+2, top+2-st, 3, 7+st);
   ctx.fillStyle = "#2e2418";
-  ctx.fillRect(px-6, top+9+step, 5, 3); ctx.fillRect(px+1, top+9-step, 5, 3); // ботинки
+  ctx.fillRect(px-6, top+9+st, 5, 3); ctx.fillRect(px+1, top+9-st, 5, 3); // ботинки
   ctx.fillStyle = "#161009";
-  ctx.fillRect(px-6, top+11+step, 5, 1); ctx.fillRect(px+1, top+11-step, 5, 1); // подошва
+  ctx.fillRect(px-6, top+11+st, 5, 1); ctx.fillRect(px+1, top+11-st, 5, 1); // подошва
   // руки — лёгкий мах в противофазе ног, кисти чуть светлее кожи
   ctx.fillStyle = PAL.outline;
-  ctx.fillRect(px-11, top-7-Math.round(step*.5), 4, 10); ctx.fillRect(px+7, top-7+Math.round(step*.5), 4, 10);
+  ctx.fillRect(px-11, top-7-Math.round(st*.5), 4, 10); ctx.fillRect(px+7, top-7+Math.round(st*.5), 4, 10);
   ctx.fillStyle = shirt;
-  ctx.fillRect(px-10, top-6-Math.round(step*.5), 2, 6); ctx.fillRect(px+8, top-6+Math.round(step*.5), 2, 6);
+  ctx.fillRect(px-10, top-6-Math.round(st*.5), 2, 6); ctx.fillRect(px+8, top-6+Math.round(st*.5), 2, 6);
   ctx.fillStyle = skin;
-  ctx.fillRect(px-10, top+1-Math.round(step*.5), 2, 2); ctx.fillRect(px+8, top+1+Math.round(step*.5), 2, 2);
+  ctx.fillRect(px-10, top+1-Math.round(st*.5), 2, 2); ctx.fillRect(px+8, top+1+Math.round(st*.5), 2, 2);
   // туловище: контур, лицо рубашки, тень на дальней стороне, пояс
   ctx.fillStyle = PAL.outline; ctx.fillRect(px-8, top-9, 16, 14);
   ctx.fillStyle = shirt; ctx.fillRect(px-7, top-8, 14, 12);
@@ -644,13 +728,14 @@ function drawHuman(e, shirt, skin, hair, isPlayer){
   ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(px+3, top-20, 3, 12);
   ctx.fillStyle = hair; ctx.fillRect(px-6, top-21, 12, 5);
   ctx.fillRect(px-6, top-16, 2, 5); ctx.fillRect(px+4, top-16, 2, 5); // виски
-  // глаза: два ряда — тёмная строка + светлый блик; смещаются по dir
-  const ex = e.dir==="left" ? -1 : e.dir==="right" ? 1 : 0;
-  if(e.dir!=="up"){
+  if(e.dir==="down"){
+    // глаза: два ряда — тёмная строка + светлый блик
     ctx.fillStyle = "#2a2016";
-    ctx.fillRect(px-3+ex, top-13, 2, 2); ctx.fillRect(px+1+ex, top-13, 2, 2);
+    ctx.fillRect(px-3, top-13, 2, 2); ctx.fillRect(px+1, top-13, 2, 2);
     ctx.fillStyle = "#f4ead8";
-    ctx.fillRect(px-3+ex, top-13, 1, 1); ctx.fillRect(px+1+ex, top-13, 1, 1);
+    ctx.fillRect(px-3, top-13, 1, 1); ctx.fillRect(px+1, top-13, 1, 1);
+    ctx.fillStyle = "rgba(160,70,60,.35)";                      // румянец
+    ctx.fillRect(px-5, top-11, 2, 1); ctx.fillRect(px+3, top-11, 2, 1);
   } else {
     ctx.fillStyle = hair; ctx.fillRect(px-5, top-15, 10, 3); // вид с затылка
   }
