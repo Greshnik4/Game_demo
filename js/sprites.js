@@ -42,16 +42,28 @@ addEventListener("resize", resize); resize();
 function hash(x,y,s){ let h = (x*374761393 + y*668265263 + s*1442695041) >>> 0;
   h = (h ^ (h>>13)) * 1274126177 >>> 0; return (h ^ (h>>16)) / 4294967296; }
 
-/** Палитра игры. Массивы — варианты оттенков одного материала (выбираются по hash). */
+/** Палитра игры. Массивы — варианты оттенков одного материала (выбираются по hash).
+    Стиль — тёплый «сказочный пиксель»: сочная зелень, мёд и терракота, мягкие тени. */
 const PAL = {
-  grass:["#4d7c46","#5c8b53","#3f6a3d","#689a5e"],
-  path:["#c2a06b","#a9875a","#d3b784"],
-  water:["#35689f","#4a7cb2","#7fa8d4"],
-  sand:"#d6c091", foam:"#e8f0f6",
-  plaster:"#e8d8b6", plasterShade:"#d3bf95",
-  beam:"#6a4a2c", beamLo:"#54381e",
-  floor:["#96704a","#7d5c3c","#a5805a"],
-  gold:"#e8c76a",
+  grass:["#578c4f","#6aa060","#487a43","#7ab56c"],
+  flower:["#f0df6c","#ea7fa0","#f3f0da","#bd86dd","#7fb2e8"],
+  path:["#cbaa74","#b28f5f","#dcc290","#9e7d52"],
+  water:["#3d7ab4","#5b93c9","#8fbde4","#b9dcf2"],
+  sand:"#dfca9c", sandLo:"#cbb281", foam:"#eef5fa",
+  plaster:"#f0e0bd", plasterShade:"#dbc69c", plasterHi:"#f8ecd2",
+  beam:"#7a5533", beamLo:"#5e3f22", beamHi:"#96703f",
+  floor:["#a37c52","#8a6642","#b58e63"],
+  wood:"#8a6238", woodHi:"#a8814f", woodLo:"#5d3a1e", woodDk:"#241a10",
+  outline:"#1d160d",
+  stone:["#7d8288","#99a0a7","#5c6167","#b3bac1"],
+  leaf:["#2f6233","#3f7d41","#57a052","#6db95f"],
+  trunk:["#795530","#5b3d20"],
+  gold:"#eecb72", goldLo:"#b98f3e",
+  roofRed:["#c25b47","#94382b","#dd7a61"],
+  roofGray:["#67768a","#4b5866","#8496ad"],
+  iron:["#454b54","#2c3138"],
+  doorFace:"#9c6f3f", doorPlank:"#7d552f", doorHi:"#b98a52",
+  carpet:"#93404f", carpetLo:"#712c3a",
 };
 /** Символ поверхности — травяной (обычная трава или цветы)? */
 const isGrass = t => t==="." || t==="F";
@@ -75,9 +87,13 @@ function drawGrass(x,y,tx,ty){
     const hx = hash(tx,ty,32)*TILE|0, hy = hash(tx,ty,33)*TILE|0;
     ctx.fillRect(x+hx, y+hy, 2, 2);
   }
-  if(hash(tx,ty,44)>.82){ // отдельные травинки
+  if(hash(tx,ty,44)>.82){ // отдельные травинки: стебелёк + боковой листик
     const hx = (hash(tx,ty,45)*12|0)+2, hy = (hash(tx,ty,46)*12|0)+2;
     ctx.fillStyle = PAL.grass[3]; ctx.fillRect(x+hx, y+hy, 1, 3); ctx.fillRect(x+hx+2, y+hy+1, 1, 2);
+  }
+  if(hash(tx,ty,90)>.9){ // точечный блик-росинка
+    const hx = (hash(tx,ty,91)*14|0)+1, hy = (hash(tx,ty,92)*14|0)+1;
+    ctx.fillStyle = "rgba(255,255,255,.14)"; ctx.fillRect(x+hx, y+hy, 1, 1);
   }
 }
 
@@ -113,21 +129,31 @@ function drawVoidArt(ax,ay){
 function drawSurfaceArt(t, ax, ay, time){
   const x = ax*TILE, y = ay*TILE;
   if(t==="~"){
+    // вода: два тона глубины + две бегущие волновые линии + редкие блики
     ctx.fillStyle = PAL.water[0]; ctx.fillRect(x,y,TILE,TILE);
     ctx.fillStyle = PAL.water[1];
     for(let i=0;i<2;i++)
       ctx.fillRect(x, y + i*8 + 3 + Math.sin(time*2+ax+ay)*1.5, TILE, 2);
     ctx.fillStyle = PAL.water[2];
-    if(hash(ax,ay,9) > .72) ctx.fillRect(x+4,y+6,4,2);
-    // песчаная кромка берега + пенные блики
+    if(hash(ax,ay,9) > .72){
+      const bx = (hash(ax,ay,10)*10|0)+3, by = (hash(ax,ay,11)*10|0)+3;
+      ctx.fillRect(x+bx, y+by, 4, 2); ctx.fillRect(x+bx+1, y+by-1, 2, 1);
+    }
+    // песчаная кромка берега: мокрый песок у воды + пенная линия по фазе волны
     ctx.fillStyle = PAL.sand;
     if(!isWater(ax,ay-1)) ctx.fillRect(x,y,TILE,4);
     if(!isWater(ax,ay+1)) ctx.fillRect(x,y+TILE-4,TILE,4);
     if(!isWater(ax-1,ay)) ctx.fillRect(x,y,4,TILE);
     if(!isWater(ax+1,ay)) ctx.fillRect(x+TILE-4,y,4,TILE);
+    ctx.fillStyle = PAL.sandLo;
+    if(!isWater(ax,ay-1)) ctx.fillRect(x,y+3,TILE,1);
+    if(!isWater(ax,ay+1)) ctx.fillRect(x,y+TILE-4,TILE,1);
+    if(!isWater(ax-1,ay)) ctx.fillRect(x+3,y,1,TILE);
+    if(!isWater(ax+1,ay)) ctx.fillRect(x+TILE-4,y,1,TILE);
     ctx.fillStyle = PAL.foam;
-    if(!isWater(ax,ay-1)) for(let i=0;i<2;i++) ctx.fillRect(x+(hash(ax,ay,i)*12|0), y+4, 3, 1);
-    if(!isWater(ax,ay+1)) for(let i=0;i<2;i++) ctx.fillRect(x+(hash(ax,ay,i+9)*12|0), y+TILE-5, 3, 1);
+    const fo = Math.round(Math.sin(time*1.6+ax*0.7+ay*0.9)*1.5);
+    if(!isWater(ax,ay-1)) ctx.fillRect(x, y+4+Math.min(1,Math.max(-1,fo)), TILE, 1);
+    if(!isWater(ax,ay+1)) ctx.fillRect(x, y+TILE-5-Math.min(1,Math.max(-1,fo)), TILE, 1);
   } else if(t===","){
     ctx.fillStyle = PAL.path[0]; ctx.fillRect(x,y,TILE,TILE);
     ctx.fillStyle = PAL.path[1];
@@ -137,32 +163,43 @@ function drawSurfaceArt(t, ax, ay, time){
     }
     ctx.fillStyle = PAL.path[2];
     if(hash(ax,ay,11)>.6) ctx.fillRect(x+2,y+2,2,2);
+    ctx.fillStyle = PAL.path[3]; // редкие тёмные крупинки гравия
+    if(hash(ax,ay,12)>.75) ctx.fillRect(x+(hash(ax,ay,13)*14|0)+1, y+(hash(ax,ay,14)*14|0)+1, 1, 1);
     // трава наступает на тропу внахлёст
     ctx.fillStyle = PAL.grass[0];
     if(isGrass(surfaceAt(ax,ay-1))) for(let i=0;i<3;i++) if(hash(ax,ay,i+50)>.45) ctx.fillRect(x+i*5+(hash(ax,ay,i+51)*3|0), y, 3, 2);
     if(isGrass(surfaceAt(ax,ay+1))) for(let i=0;i<3;i++) if(hash(ax,ay,i+60)>.45) ctx.fillRect(x+i*5+(hash(ax,ay,i+61)*3|0), y+TILE-2, 3, 2);
   } else if(t==="H"){
+    // дощатый пол: доска на тайл, стык со «швом», лёгкая выработка
     ctx.fillStyle = PAL.floor[0]; ctx.fillRect(x,y,TILE,TILE);
     ctx.fillStyle = PAL.floor[1];
-    for(let i=0;i<2;i++) ctx.fillRect(x, y+i*8+7, TILE, 1);
-    ctx.fillRect(x+((ax*13+ay*7)%12)+2, y+(ay%2)*8, 1, 8); // стык досок
-    if(hash(ax,ay,7)>.7){ ctx.fillStyle = PAL.floor[2]; ctx.fillRect(x+(hash(ax,ay,8)*12|0)+2, y+(hash(ax,ay,9)*12|0)+2, 3, 2); }
+    ctx.fillRect(x, y+7, TILE, 1);           // шов между досками
+    ctx.fillRect(x+((ax*13+ay*7)%12)+2, y+(ay%2)*8, 1, 7); // поперечный стык
+    ctx.fillStyle = PAL.floor[2];
+    ctx.fillRect(x, y+8, TILE, 1);           // светлая фаска нижней доски
+    if(hash(ax,ay,7)>.7){ ctx.fillRect(x+(hash(ax,ay,8)*12|0)+2, y+(hash(ax,ay,9)*12|0)+2, 3, 2); }
   } else if(t==="u"){
+    // ковёр: бордюр со светлой нитью, поле с диагональным узором и золотым ромбом
     ctx.fillStyle = PAL.floor[0]; ctx.fillRect(x,y,TILE,TILE);
-    ctx.fillStyle = "#8a3b4e"; ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
-    ctx.fillStyle = "#6e2c3c";
+    ctx.fillStyle = PAL.carpet; ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+    ctx.fillStyle = PAL.carpetLo;
     ctx.fillRect(x+1,y+1,TILE-2,2); ctx.fillRect(x+1,y+TILE-3,TILE-2,2);
     ctx.fillRect(x+1,y+1,2,TILE-2); ctx.fillRect(x+TILE-3,y+1,2,TILE-2);
+    ctx.fillStyle = "rgba(255,255,255,.10)"; // диагональная сетка плетения
+    for(let i=0;i<4;i++) ctx.fillRect(x+3+i*3, y+3+((i+ay)%4)*2, 1, 1);
     ctx.fillStyle = PAL.gold; // ромб по центру
     ctx.fillRect(x+7,y+7,2,2);
+    ctx.fillStyle = PAL.goldLo;
+    ctx.fillRect(x+6,y+8,1,1); ctx.fillRect(x+9,y+8,1,1);
   } else if(t==="F"){
     drawGrass(x,y,ax,ay);
-    const cols = ["#e8e05a","#d96a8f","#e6e9f0","#b07ad0"];
+    const cols = PAL.flower;
     for(let i=0;i<2;i++){
       const fx = x+3+(hash(ax,ay,i)*10|0), fy = y+4+(hash(ax,ay,i+60)*8|0);
-      ctx.fillStyle = PAL.grass[2]; ctx.fillRect(fx+1,fy+2,1,3);
-      ctx.fillStyle = cols[(hash(ax,ay,i+70)*4)|0]; ctx.fillRect(fx,fy,3,3);
-      ctx.fillStyle = "#fff7d8"; ctx.fillRect(fx+1,fy+1,1,1);
+      ctx.fillStyle = PAL.grass[2]; ctx.fillRect(fx+1,fy+2,1,3);   // стебелёк
+      ctx.fillStyle = cols[(hash(ax,ay,i+70)*cols.length)|0];
+      ctx.fillRect(fx,fy,3,2); ctx.fillRect(fx+1,fy+2,1,1);        // лепестки крестиком
+      ctx.fillStyle = "#fff7d8"; ctx.fillRect(fx+1,fy,1,1);        // сердцевина
     }
   } else {
     drawGrass(x,y,ax,ay);
@@ -185,29 +222,47 @@ function drawWallCell(ax, ay){
 
   ctx.fillStyle = PAL.plaster;
   ctx.fillRect(x,y,TILE,TILE);
-
+  // фактура штукатурки: редкие вкрапления и светлая «набелка» сверху
   ctx.fillStyle = PAL.plasterShade;
+  if(hash(ax,ay,61)>.5) ctx.fillRect(x+(hash(ax,ay,62)*13|0)+1, y+(hash(ax,ay,63)*13|0)+1, 2, 1);
+  ctx.fillStyle = PAL.plasterHi;
+  ctx.fillRect(x,y,TILE,1);
   ctx.fillRect(x,y+TILE-2,TILE,2);
 
   ctx.fillStyle = PAL.beam;
   if(horiz){
-    ctx.fillRect(x,y,TILE,2);
-    ctx.fillRect(x,y+TILE-2,TILE,2);
+    ctx.fillRect(x,y,TILE,3);
+    ctx.fillRect(x,y+TILE-3,TILE,3);
+    ctx.fillStyle = PAL.beamHi;                       // светлая грань бруса сверху
+    if(up)   ctx.fillRect(x,y,TILE,1);
+    if(down) ctx.fillRect(x,y+TILE-3,TILE,1);
+    ctx.fillStyle = PAL.beamLo;
+    if(up)   ctx.fillRect(x,y+2,TILE,1);              // тень под верхним брусом
+    if(down) ctx.fillRect(x,y+TILE-1,TILE,1);
   }
   if(vert){
-    ctx.fillRect(x,y,2,TILE);
-    ctx.fillRect(x+TILE-2,y,2,TILE);
+    ctx.fillStyle = PAL.beam;
+    ctx.fillRect(x,y,3,TILE);
+    ctx.fillRect(x+TILE-3,y,3,TILE);
+    ctx.fillStyle = PAL.beamHi;
+    if(left)  ctx.fillRect(x,y,1,TILE);
+    if(right) ctx.fillRect(x+TILE-3,y,1,TILE);
+    ctx.fillStyle = PAL.beamLo;
+    if(left)  ctx.fillRect(x+2,y,1,TILE);
+    if(right) ctx.fillRect(x+TILE-1,y,1,TILE);
   }
-  if(!horiz && !vert){
-    ctx.fillRect(x,y,TILE,2);
-    ctx.fillRect(x,y+TILE-2,TILE,2);
-    ctx.fillRect(x,y,2,TILE);
-    ctx.fillRect(x+TILE-2,y,2,TILE);
+  if(!horiz && !vert){ // одинокий тайл — рамка со всех сторон + «сращение» углов
+    ctx.fillStyle = PAL.beam;
+    ctx.fillRect(x,y,TILE,3); ctx.fillRect(x,y+TILE-3,TILE,3);
+    ctx.fillRect(x,y,3,TILE); ctx.fillRect(x+TILE-3,y,3,TILE);
+    ctx.fillStyle = PAL.beamLo;
+    ctx.fillRect(x+3,y+3,2,2); ctx.fillRect(x+TILE-5,y+3,2,2);
+    ctx.fillRect(x+3,y+TILE-5,2,2); ctx.fillRect(x+TILE-5,y+TILE-5,2,2);
+  } else {
+    ctx.fillStyle = PAL.beamLo; // нагели (чёрточки крепления) на брусьях
+    if(horiz && hash(ax,ay,64)>.5) ctx.fillRect(x+7, y+(up?0:TILE-3), 2, 3);
+    if(vert  && hash(ax,ay,65)>.5) ctx.fillRect(x+(left?0:TILE-3), y+7, 3, 2);
   }
-
-  ctx.fillStyle = "rgba(0,0,0,.16)";
-  if(horiz) ctx.fillRect(x,y+TILE-1,TILE,1);
-  if(vert)  ctx.fillRect(x+TILE-1,y,1,TILE);
 }
 
 /* ============================== ОБЪЕКТЫ ==============================
@@ -235,20 +290,26 @@ const GROUND_OFF = -3;
 
 /**
  * Крыша — один объект на весь прямоугольник дома.
- * "R" — красная черепица, "r" — серая; швы вразбежку, свес с тенью снизу.
+ * "R" — красная черепица, "r" — серая; ряды черепицы с фаской, конёк, свес с тенью.
  * @param {object} o объект крыши (w,h покрывают весь дом)
  */
 function drawRoof(o){
   const x = o.x*TILE, y = o.y*TILE, w = o.w*TILE, h = o.h*TILE;
   const red = o.t === "R";
-  ctx.fillStyle = red ? "#b8503f" : "#5d6b7a"; ctx.fillRect(x,y,w,h);
-  ctx.fillStyle = red ? "#8f3a2c" : "#46525e";
-  for(let i=0;i<h/8;i++) ctx.fillRect(x, y+i*8+6, w, 2);
-  for(let i=0;i<w/8;i++){ // вертикальные швы черепицы вразбежку
+  const c = red ? PAL.roofRed : PAL.roofGray; // [лицо, тень, свет]
+  ctx.fillStyle = c[0]; ctx.fillRect(x,y,w,h);
+  // ряды черепицы: каждые 8 px — тёмный шов + светлая фаска следующего ряда
+  for(let i=0;i<h/8;i++){
+    ctx.fillStyle = c[1]; ctx.fillRect(x, y+i*8+6, w, 2);
+    if(i*8+8 < h){ ctx.fillStyle = c[2]; ctx.fillRect(x, y+i*8+8, w, 1); }
+  }
+  ctx.fillStyle = c[1]; // вертикальные стыки черепицы вразбежку
+  for(let i=0;i<w/8;i++){
     const sx = ((i%2)*8 + (hash(o.x+i,o.y,3)*8|0)) % w;
     ctx.fillRect(x+sx, y+(i%2)*8, 1, 6);
   }
-  ctx.fillStyle = red ? "#cf6a58" : "#75849a"; ctx.fillRect(x,y,w,3);
+  ctx.fillStyle = c[2]; ctx.fillRect(x,y,w,3);   // конёк
+  ctx.fillStyle = c[1]; ctx.fillRect(x,y+2,w,1);
   ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(x,y+h-2,w,2); // свес
 }
 
@@ -264,17 +325,18 @@ function drawRock(o){
   ctx.beginPath(); ctx.ellipse(x+w/2, bb, w*0.40, Math.max(3,h*0.12), 0, 0, 7); ctx.fill();
   const big = w>=2*TILE && h>=2*TILE;
   const top = y+Math.round(h*0.25), bh = bb-2-top;
-  ctx.fillStyle = "#6f7378";
+  ctx.fillStyle = PAL.stone[0];
   ctx.beginPath(); ctx.roundRect(x+2, top, w-4, bh, big?7:4); ctx.fill();
-  ctx.fillStyle = "#8b9096";
+  ctx.fillStyle = PAL.stone[1]; // освещённая «шапка»
   ctx.beginPath(); ctx.roundRect(x+Math.round(w*0.18), y+Math.round(h*0.18), Math.round(w*0.5), Math.round(h*0.38), big?6:3); ctx.fill();
-  ctx.fillStyle = "#4e5257";
+  ctx.fillStyle = PAL.stone[2]; // тёмная грань снизу справа
   ctx.fillRect(x+Math.round(w*0.6), y+Math.round(h*0.5), Math.round(w*0.28), Math.round(h*0.28));
-  ctx.fillStyle = "#a7adb3";
+  ctx.fillStyle = PAL.stone[3]; // блик
   ctx.fillRect(x+Math.round(w*0.25), y+Math.round(h*0.22), big?5:3, 2);
   if(big){ // у большой глыбы — отдельный выступ, чтобы читалась «склейка»
-    ctx.fillStyle = "#5d6166";
+    ctx.fillStyle = PAL.stone[2];
     ctx.beginPath(); ctx.roundRect(x+w-12, bb-13, 9, 11, 3); ctx.fill();
+    ctx.fillStyle = PAL.stone[1]; ctx.fillRect(x+w-10, bb-12, 4, 2);
   }
 }
 
@@ -288,12 +350,14 @@ function drawSign(o){
   const bx = x + (o.cx - o.x + 0.5) * TILE; // стойка по центру коллизионной клетки
   ctx.fillStyle = "rgba(0,0,0,.2)";
   ctx.beginPath(); ctx.ellipse(bx, y+h-GROUND_OFF, 8, 3, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = "#6b4a2b"; ctx.fillRect(bx-2, y+10, 4, h-GROUND_OFF-10);
-  ctx.fillStyle = "#54381e"; ctx.fillRect(bx-2, y+10, 1, h-GROUND_OFF-10);
-  // доска шире клетки (свес допустим), но стойка, тень и основание — на коллизионной клетке
-  ctx.fillStyle = "#9c7b4f"; ctx.fillRect(bx-11, y+2, 22, 12);
-  ctx.fillStyle = "#b08d5c"; ctx.fillRect(bx-11, y+2, 22, 2);
-  ctx.fillStyle = "#5d4630"; ctx.fillRect(bx-8, y+6, 10, 2); ctx.fillRect(bx-8, y+9, 7, 2);
+  ctx.fillStyle = PAL.trunk[0]; ctx.fillRect(bx-2, y+10, 4, h-GROUND_OFF-10); // стойка
+  ctx.fillStyle = PAL.trunk[1]; ctx.fillRect(bx-2, y+10, 1, h-GROUND_OFF-10);
+  ctx.fillStyle = PAL.woodDk; ctx.fillRect(bx-12, y+1, 24, 14);               // контур доски
+  ctx.fillStyle = "#9c7b4f";   ctx.fillRect(bx-11, y+2, 22, 12);
+  ctx.fillStyle = PAL.woodHi;  ctx.fillRect(bx-11, y+2, 22, 2);               // светлая верхняя планка
+  ctx.fillStyle = PAL.woodLo;  ctx.fillRect(bx-11, y+12, 22, 2);              // нижняя планка
+  ctx.fillStyle = "#5d4630";   ctx.fillRect(bx-8, y+6, 10, 2); ctx.fillRect(bx-8, y+9, 7, 2); // текст-штрихи
+  ctx.fillStyle = PAL.gold;    ctx.fillRect(bx-11, y+4, 1, 1); ctx.fillRect(bx+10, y+4, 1, 1); // гвозди
 }
 
 /**
@@ -303,12 +367,14 @@ function drawSign(o){
  */
 function drawForest(o){
   const x = o.x*TILE, y = o.y*TILE, w = o.w*TILE, h = o.h*TILE;
-  ctx.fillStyle = "#27401f"; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle = "#223a1b"; ctx.fillRect(x,y,w,h);
   for(let ty=0; ty<o.h; ty++) for(let tx=0; tx<o.w; tx++){
     const ax = o.x+tx, ay = o.y+ty;
-    ctx.fillStyle = "#1d3318";
-    ctx.beginPath(); ctx.arc(ax*TILE+8+(hash(ax,ay,2)*8-4), ay*TILE+8+(hash(ax,ay,3)*8-4), 6+hash(ax,ay,4)*3, 0, 7); ctx.fill();
-    ctx.fillStyle = "#35562b";
+    ctx.fillStyle = "#1b3015"; // глубокая тень между кронами
+    ctx.beginPath(); ctx.arc(ax*TILE+8+(hash(ax,ay,2)*8-4), ay*TILE+8+(hash(ax,ay,3)*8-4), 7+hash(ax,ay,4)*3, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2c4a22";
+    ctx.beginPath(); ctx.arc(ax*TILE+8+(hash(ax,ay,7)*6-3), ay*TILE+7+(hash(ax,ay,8)*6-3), 5+hash(ax,ay,4)*2, 0, 7); ctx.fill();
+    ctx.fillStyle = "#3a6130"; // подсветка кроны сверху
     if(hash(ax,ay,5)>.55) ctx.fillRect(ax*TILE+3, ay*TILE+3, 4, 3);
     if(hash(ax,ay,6)>.75) ctx.fillRect(ax*TILE+10, ay*TILE+11, 3, 2);
   }
@@ -316,7 +382,7 @@ function drawForest(o){
 }
 
 /**
- * Дерево: крона 2×2, ствол и тень — по центру коллизионного ряда 2×1.
+ * Дерево: крона из трёх ярусов зелени, ствол с корнями и дуплом, тень — по линии земли.
  * Крона слегка покачивается; ствол центрирован над коллизионным рядом.
  * @param {object} o объект дерева (vw=2, vh=2, cw=2, ch=1)
  * @param {number} time секунды с запуска (фаза покачивания)
@@ -328,84 +394,105 @@ function drawTree(o, time){
   ctx.fillStyle = "rgba(0,0,0,0.22)";
   ctx.beginPath(); ctx.ellipse(bx, by, 11, 4, 0, 0, 7); ctx.fill();
   const sw = Math.sin(time*1.3 + o.x*0.7 + o.y*0.4)*1.2;
-  ctx.fillStyle = "#6b4a2b"; ctx.fillRect(bx-3, by-15, 6, 15);
-  ctx.fillStyle = "#54381e"; ctx.fillRect(bx-3, by-15, 2, 15);
-  // крона центрирована над стволом
+  ctx.fillStyle = PAL.trunk[0]; ctx.fillRect(bx-3, by-15, 6, 15);      // ствол
+  ctx.fillStyle = PAL.trunk[1]; ctx.fillRect(bx-3, by-15, 2, 15);      // теневая сторона
+  ctx.fillRect(bx-5, by-2, 10, 2);                                     // корни
+  ctx.fillStyle = PAL.woodDk; ctx.fillRect(bx+1, by-9, 2, 3);           // дупло
+  // крона центрирована над стволом: тёмное ядро → средние лопасти → светлые блики
   const cx = bx, cy = by - TILE*1.25;
-  ctx.fillStyle = "#274f2b"; ctx.beginPath(); ctx.arc(cx+sw, cy, 13, 0, 7); ctx.fill();
-  ctx.fillStyle = "#356b36"; ctx.beginPath(); ctx.arc(cx-5+sw, cy-3, 8, 0, 7); ctx.arc(cx+6+sw, cy-1, 7, 0, 7); ctx.fill();
-  ctx.fillStyle = "#4c8f4c"; ctx.beginPath(); ctx.arc(cx-2+sw, cy-7, 5, 0, 7); ctx.fill();
-  ctx.fillStyle = "#5fa355"; ctx.fillRect(cx-4+sw, cy-9, 4, 3);
+  ctx.fillStyle = PAL.leaf[0]; ctx.beginPath(); ctx.arc(cx+sw, cy, 13, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.leaf[1]; ctx.beginPath(); ctx.arc(cx-5+sw, cy-3, 8, 0, 7); ctx.arc(cx+6+sw, cy-1, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.leaf[2]; ctx.beginPath(); ctx.arc(cx-2+sw, cy-7, 5, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.leaf[3]; ctx.fillRect(cx-4+sw, cy-9, 4, 3);
+  if(hash(o.x,o.y,80)>.6){ // редкие плоды/листочки-акценты
+    ctx.fillStyle = "#d86a52";
+    ctx.fillRect(cx+5+sw, cy+2, 2, 2); ctx.fillRect(cx-7+sw, cy-2, 2, 2);
+  }
 }
 
 /**
  * Дверь: 2×1 в тонкой стене. Перспектива, не вид сверху: створка на левой
- * петле «отваливается» на камеру — горизонталь укорачивается (cos),
- * ближний край опускается и становится крупнее (ниже — ближе к зрителю).
+ * петле «отваливается» на зрителя — горизонталь укорачивается (cos), ближний
+ * край опускается ниже линии петель и становится крупнее (ниже — ближе).
+ * Полотно рисуется ПОВЕРХ проёма всё время анимации: при a→0 оно точно
+ * совпадает с проёмом, поэтому «дыра» никогда не опережает створку.
  * @param {object} o объект двери; состояние берётся из doorAnim (0..1) и doorLocked
  * @param {number} time секунды с запуска (в расчёте не участвует — анимация идёт через doorAnim)
  */
 function drawDoor(o, time){
   const x = o.x*TILE, y = o.y*TILE;
   const a = doorAnim[o.x+","+o.y]||0, locked = doorLocked(o.x,o.y);
+  // easing: плавный старт/финиш вместо линейного «щелчка»
+  const ea = a*a*(3-2*a);
   const quad = (x1,y1,x2,y2,x3,y3,x4,y4) => {
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
     ctx.lineTo(x3,y3); ctx.lineTo(x4,y4); ctx.closePath(); ctx.fill();
   };
+  // стена вокруг проёма — как соседние тайлы стены, но без балок поперёк двери
   ctx.fillStyle = PAL.plaster; ctx.fillRect(x,y,2*TILE,TILE);
+  ctx.fillStyle = PAL.plasterHi; ctx.fillRect(x,y,2*TILE,1);
   ctx.fillStyle = PAL.beam;
-  ctx.fillRect(x,y,2*TILE,2); ctx.fillRect(x,y+TILE-2,2*TILE,2);
-  ctx.fillRect(x,y,2,TILE); ctx.fillRect(x+2*TILE-2,y,2,TILE);
-  ctx.fillStyle = PAL.beamLo; ctx.fillRect(x+3,y+2,26,12); // коробка
-  // проём: закрытый — тёмный, открытый — светлый пол за дверью
-  if(a > 0.05){
-    ctx.fillStyle = PAL.floor[0]; ctx.fillRect(x+5,y+3,22,10);
-    ctx.fillStyle = PAL.floor[1];
-    ctx.fillRect(x+5,y+6,22,1); ctx.fillRect(x+5,y+10,22,1);
-    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(x+5,y+3,22,2); // тень от притолоки
+  ctx.fillRect(x,y+TILE-3,2*TILE,3);                        // нижняя обвязка
+  ctx.fillRect(x,y,2,TILE); ctx.fillRect(x+2*TILE-2,y,2,TILE); // боковые стойки
+  ctx.fillStyle = PAL.beamLo; ctx.fillRect(x,y+TILE-1,2*TILE,1);
+  // коробка проёма
+  ctx.fillStyle = PAL.beamLo; ctx.fillRect(x+3,y+2,26,12);
+  // проём: за дверью — тёмная прихожая со светлым полом;
+  // чем шире открыто, тем больше тёплого света «выливается» наружу
+  if(a > 0.02){
+    ctx.fillStyle = "#2b1f12"; ctx.fillRect(x+5,y+3,22,10);
+    ctx.fillStyle = PAL.floor[0]; ctx.fillRect(x+5,y+7,22,6);       // пол за дверью
+    ctx.fillStyle = PAL.floor[1]; ctx.fillRect(x+5,y+10,22,1);
+    ctx.fillStyle = "rgba(255,220,150,"+(0.10+ea*0.18).toFixed(3)+")";
+    ctx.fillRect(x+5,y+3,22,4);                                     // свет изнутри
+    ctx.fillStyle = "rgba(0,0,0,.30)"; ctx.fillRect(x+5,y+3,22,2);  // тень притолоки
   } else {
-    ctx.fillStyle = "#241a10"; ctx.fillRect(x+5,y+3,22,10);
+    ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+5,y+3,22,10);        // закрыто — глубокая тень
   }
-  // створка: a=0 лежит в проёме, a=1 открыта на ~50° на зрителя —
-  // панель остаётся широкой, а не схлопывается в «палку»
-  const th = a * 0.9;
+  // геометрия створки: левый край — на петлях, правый уходит к зрителю
+  const th = ea * 1.15;                     // до ~66°: читается «распахнута», а не «схлопнута»
   const cs = Math.cos(th), sn = Math.sin(th);
-  const hx = x+5, hy0 = y+3, hy1 = y+13, L = 22, e = 4*sn;
+  const hx = x+5, hy0 = y+3, hy1 = y+13, L = 22;
   const fx = hx + L*cs;                 // свободный край: укорочен перспективой
-  const fy0 = hy0 + L*sn*0.8 - e;       // его верх опущен и приподнят за счёт близости
-  const fy1 = hy1 + L*sn*1.2 + e;       // низ — сильнее: ближний край крупнее
-  // тень полотна на полу/траве
+  const fy0 = hy0 + L*sn*0.55;          // его верх опущен — полотно «валится» на зрителя
+  const fy1 = hy1 + L*sn*1.15;          // низ уходит сильнее: ближний край крупнее
+  // тень полотна на траве перед порогом
   ctx.fillStyle = "rgba(0,0,0,.18)";
-  quad(hx+2, hy0+4, fx+3, fy0+4, fx+3, fy1+4, hx+2, hy1+4);
+  quad(hx+2, hy0+5, fx+3, fy0+5, fx+3, fy1+5, hx+2, hy1+5);
   // контур и полотно
-  ctx.fillStyle = "#241a10";
+  ctx.fillStyle = PAL.woodDk;
   quad(hx-1, hy0-1, fx+1, fy0-1, fx+1, fy1+1, hx-1, hy1+1);
-  ctx.fillStyle = "#75512b";
+  ctx.fillStyle = PAL.doorFace;
   quad(hx, hy0, fx, fy0, fx, fy1, hx, hy1);
-  // светлая верхняя кромка — грань полотна
-  ctx.fillStyle = "#8a6238";
+  // светлая верхняя кромка — грань полотна ловит свет
+  ctx.fillStyle = PAL.doorHi;
   quad(hx, hy0, fx, fy0, fx, fy0+2, hx, hy0+2);
-  // доски параллельно краю петли
-  if(a < 0.6){
-    ctx.fillStyle = "#5d3a1e";
-    for(const f of [0.33, 0.66]){
-      const px0 = hx + L*f, px1 = hx + L*f*cs;
-      quad(px0-1, hy0, px0+1, hy0, px1+1, fy1, px1-1, fy1);
-    }
+  // вертикальные доски: две планки растягиваются вместе с полотном
+  ctx.fillStyle = PAL.doorPlank;
+  for(const f of [0.34, 0.67]){
+    quad(hx + L*f - 0.5, hy0, hx + L*f + 0.5, hy0,
+         hx + L*f*cs + 0.5, hy0 + L*sn*0.55, hx + L*f*cs - 0.5, hy0 + L*sn*0.55);
+    quad(hx + L*f - 0.5, hy1, hx + L*f + 0.5, hy1,
+         hx + L*f*cs + 0.5, hy1 + L*sn*1.15, hx + L*f*cs - 0.5, hy1 + L*sn*1.15);
   }
-  // ручка на свободном краю
-  ctx.fillStyle = PAL.gold;
-  ctx.fillRect(Math.round(fx)-4, Math.round((fy0+fy1)/2)-1, 2, 2);
-  if(locked && a<.05){ // железная полоса с замком — дверь заперта
-    ctx.fillStyle = "#3a3f46"; ctx.fillRect(x+5,y+7,22,3);
-    ctx.fillStyle = "#22262b"; ctx.fillRect(x+14,y+7,4,5);
-    ctx.fillStyle = PAL.gold; ctx.fillRect(x+15,y+8,2,2);
+  // металлические петли на стороне шарнира — деталь, дающая масштаб
+  ctx.fillStyle = PAL.iron[0];
+  quad(hx, hy0,   hx+5, hy0,   hx+5*cs, hy0 + 5*sn*0.55, hx, hy0+2);
+  quad(hx, hy1-2, hx+5, hy1-2, hx+5*cs, hy1-2 + 5*sn*1.15, hx, hy1);
+  // ручка-шишка на свободном краю (скользит вместе с ним)
+  const knobY = (fy0+fy1)/2;
+  ctx.fillStyle = PAL.goldLo; ctx.fillRect(Math.round(fx)-5, Math.round(knobY)-1, 3, 3);
+  ctx.fillStyle = PAL.gold;   ctx.fillRect(Math.round(fx)-5, Math.round(knobY)-1, 2, 2);
+  if(locked && a<.05){ // железная полоса с висячим замком — дверь заперта
+    ctx.fillStyle = PAL.iron[0]; ctx.fillRect(x+5,y+7,22,3);
+    ctx.fillStyle = PAL.iron[1]; ctx.fillRect(x+14,y+7,4,6);
+    ctx.fillStyle = PAL.gold; ctx.fillRect(x+15,y+9,2,2);
   }
-  ctx.fillStyle = "#b9a06f"; ctx.fillRect(x+5,y+TILE-GROUND_OFF,22,1); // порог по линии земли
+  ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+5,y+TILE-GROUND_OFF,22,1); // порог по линии земли
 }
-
 /**
- * Забор: один объект на весь ряд — сплошные перекладины, столб в каждом тайле.
+ * Забор: один объект на весь ряд — штакетники с заострёнными верхами,
+ * две перекладины со светлой гранью, столб в каждом тайле.
  * Ряд может быть горизонтальным (w×1) или вертикальным (1×h).
  * @param {object} o объект забора
  */
@@ -414,77 +501,79 @@ function drawFence(o){
   if(o.h === 1){
     ctx.fillStyle = "rgba(0,0,0,.18)";
     ctx.beginPath(); ctx.ellipse(x+w/2, y+h-GROUND_OFF, w*0.45, 4, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = "#6b4a2b";
-    for(let i=0; i<o.w; i++){ ctx.fillRect(x+i*TILE+5, y+4, 6, h-GROUND_OFF-4); }
-    ctx.fillStyle = "#8a6238";
-    ctx.fillRect(x, y+6, w, 3);
-    ctx.fillRect(x, y+12, w, 3);
-    ctx.fillStyle = "#54381e";
-    for(let i=0; i<o.w; i++){ ctx.fillRect(x+i*TILE+5, y+4, 1, h-GROUND_OFF-4); }
-    ctx.fillStyle = "#a8814f";
-    ctx.fillRect(x, y+6, w, 1);
-    ctx.fillRect(x, y+12, w, 1);
+    // штакетники: тёмный контур → лицо → светлая левая грань → скошенный верх
+    for(let i=0; i<o.w; i++){
+      const px = x+i*TILE+5;
+      ctx.fillStyle = PAL.woodDk;  ctx.fillRect(px-1, y+3, 8, h-GROUND_OFF-3);
+      ctx.fillStyle = PAL.wood;    ctx.fillRect(px,   y+4, 6, h-GROUND_OFF-4);
+      ctx.fillStyle = PAL.woodHi;  ctx.fillRect(px,   y+4, 1, h-GROUND_OFF-4);
+      ctx.fillStyle = PAL.woodLo;  ctx.fillRect(px+5, y+4, 1, h-GROUND_OFF-4);
+      ctx.fillStyle = PAL.wood;    ctx.fillRect(px+1, y+2, 4, 2); ctx.fillRect(px+2, y+1, 2, 1);
+    }
+    // перекладины поверх штакетников, со светлой и теневой гранями
+    ctx.fillStyle = PAL.woodDk; ctx.fillRect(x, y+5, w, 5); ctx.fillRect(x, y+11, w, 5);
+    ctx.fillStyle = PAL.wood;   ctx.fillRect(x, y+6, w, 3); ctx.fillRect(x, y+12, w, 3);
+    ctx.fillStyle = PAL.woodHi; ctx.fillRect(x, y+6, w, 1); ctx.fillRect(x, y+12, w, 1);
   } else {
     ctx.fillStyle = "rgba(0,0,0,.18)";
     ctx.beginPath(); ctx.ellipse(x+w/2, y+h-GROUND_OFF, w*0.45, 4, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = "#6b4a2b";
-    for(let i=0; i<o.h; i++){ ctx.fillRect(x+4, y+i*TILE+5, w-8, 6); }   // столбы
-    ctx.fillStyle = "#8a6238";
-    ctx.fillRect(x+5, y, 3, h-GROUND_OFF);                               // продольные
-    ctx.fillRect(x+11, y, 3, h-GROUND_OFF);
-    ctx.fillStyle = "#54381e";
-    for(let i=0; i<o.h; i++){ ctx.fillRect(x+4, y+i*TILE+5, w-8, 1); }
-    ctx.fillStyle = "#a8814f";
-    ctx.fillRect(x+5, y, 1, h-GROUND_OFF);
-    ctx.fillRect(x+11, y, 1, h-GROUND_OFF);
+    for(let i=0; i<o.h; i++){                                // поперечные столбы
+      const py = y+i*TILE+5;
+      ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+3, py-1, w-6, 8);
+      ctx.fillStyle = PAL.wood;   ctx.fillRect(x+4, py, w-8, 6);
+      ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+4, py, w-8, 1);
+      ctx.fillStyle = PAL.woodLo; ctx.fillRect(x+4, py+5, w-8, 1);
+    }
+    ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+4, y, 5, h-GROUND_OFF); ctx.fillRect(x+10, y, 5, h-GROUND_OFF);
+    ctx.fillStyle = PAL.wood;   ctx.fillRect(x+5, y, 3, h-GROUND_OFF); ctx.fillRect(x+11, y, 3, h-GROUND_OFF);
+    ctx.fillStyle = PAL.woodHi; ctx.fillRect(x+5, y, 1, h-GROUND_OFF); ctx.fillRect(x+11, y, 1, h-GROUND_OFF);
   }
 }
-
 /** Наковальня на деревянной колоде; низ — по общей линии земли. */
 function drawAnvil(o){
   const x = o.x*TILE, y = o.y*TILE + 8; // низ — по общей линии земли (низ ряда +3)
   ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x+16,y+27,10,4,0,0,7); ctx.fill();
-  ctx.fillStyle = "#6b4a2b"; ctx.fillRect(x+11,y+22,10,5);
-  ctx.fillStyle = "#54381e"; ctx.fillRect(x+11,y+22,10,2);
-  ctx.fillStyle = "#555c66"; ctx.fillRect(x+5,y+12,22,7);
-  ctx.fillStyle = "#767e8a"; ctx.fillRect(x+5,y+12,22,2);
-  ctx.fillStyle = "#474d56"; ctx.fillRect(x+2,y+13,4,4);
+  ctx.fillStyle = PAL.trunk[0]; ctx.fillRect(x+11,y+22,10,5);
+  ctx.fillStyle = PAL.trunk[1]; ctx.fillRect(x+11,y+22,10,2);
+  ctx.fillStyle = PAL.stone[0]; ctx.fillRect(x+5,y+12,22,7);
+  ctx.fillStyle = "#8b93a0"; ctx.fillRect(x+5,y+12,22,2);
+  ctx.fillStyle = PAL.stone[2]; ctx.fillRect(x+2,y+13,4,4);
 }
 /** Кровать: тёмный контур (мебель не сливается с полом), одеяло и подушка. */
 function drawBed(o){
   const x = o.x*TILE, y = o.y*TILE + 8;
-  ctx.fillStyle = "#241a0f"; ctx.fillRect(x+2,y+4,28,23); // контур — мебель не сливается с полом
-  ctx.fillStyle = "#4a2f1d"; ctx.fillRect(x+3,y+5,26,22);
-  ctx.fillStyle = "#33200f"; ctx.fillRect(x+3,y+5,26,3);
-  ctx.fillStyle = "#e8e0cc"; ctx.fillRect(x+6,y+9,20,17);
-  ctx.fillStyle = "#a83a4a"; ctx.fillRect(x+6,y+14,20,11);
-  ctx.fillStyle = "#7e2a38"; ctx.fillRect(x+6,y+14,20,2);
-  ctx.fillStyle = "#f7f2e4"; ctx.fillRect(x+7,y+10,8,4);
+  ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+2,y+4,28,23); // контур — мебель не сливается с полом
+  ctx.fillStyle = "#5a3a22"; ctx.fillRect(x+3,y+5,26,22);
+  ctx.fillStyle = "#3d2814"; ctx.fillRect(x+3,y+5,26,3);
+  ctx.fillStyle = "#efe6cf"; ctx.fillRect(x+6,y+9,20,17);
+  ctx.fillStyle = "#b04558"; ctx.fillRect(x+6,y+14,20,11);
+  ctx.fillStyle = "#8a3143"; ctx.fillRect(x+6,y+14,20,2);
+  ctx.fillStyle = "#fbf6e8"; ctx.fillRect(x+7,y+10,8,4);
   ctx.fillStyle = PAL.gold; ctx.fillRect(x+6,y+24,20,1);
 }
 /** Стол: светлая столешница, ножки, синяя тарелка. */
 function drawTable(o){
   const x = o.x*TILE, y = o.y*TILE + 8;
-  ctx.fillStyle = "#241a0f"; ctx.fillRect(x+2,y+5,28,22);
-  ctx.fillStyle = "#3a2a18"; ctx.fillRect(x+6,y+10,4,17); ctx.fillRect(x+22,y+10,4,17);
-  ctx.fillStyle = "#c9b28a"; ctx.fillRect(x+3,y+7,26,10); // светлая столешница
-  ctx.fillStyle = "#e0cda6"; ctx.fillRect(x+3,y+7,26,3);
-  ctx.fillStyle = "#8a6f4d"; ctx.fillRect(x+3,y+15,26,2);
-  ctx.fillStyle = "#3e6b8f"; ctx.beginPath(); ctx.arc(x+16,y+11,3,0,7); ctx.fill(); // синяя тарелка
+  ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+2,y+5,28,22);
+  ctx.fillStyle = "#4a3620"; ctx.fillRect(x+6,y+10,4,17); ctx.fillRect(x+22,y+10,4,17);
+  ctx.fillStyle = "#d3bb92"; ctx.fillRect(x+3,y+7,26,10); // светлая столешница
+  ctx.fillStyle = "#ead7ae"; ctx.fillRect(x+3,y+7,26,3);
+  ctx.fillStyle = "#96794f"; ctx.fillRect(x+3,y+15,26,2);
+  ctx.fillStyle = "#4a7ba8"; ctx.beginPath(); ctx.arc(x+16,y+11,3,0,7); ctx.fill(); // синяя тарелка
 }
 /** Сундук: запертый — с висячим замком, открытый — с тёмным проёмом приоткрытой крышки. */
 function drawChest(o){
   const x = o.x*TILE, y = o.y*TILE + 8, k = o.x+","+o.y;
   ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x+16,y+27,11,4,0,0,7); ctx.fill();
-  ctx.fillStyle = "#241a0f"; ctx.fillRect(x+4,y+9,24,18); // контур
+  ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+4,y+9,24,18); // контур
   ctx.fillStyle = "#3e5d4f"; ctx.fillRect(x+5,y+10,22,17); // крашеный сундук — зелёно-синий
   ctx.fillStyle = "#4f7263"; ctx.fillRect(x+5,y+10,22,6);
   ctx.fillStyle = "#2c443a"; ctx.fillRect(x+5,y+15,22,2);
   ctx.fillStyle = "#2c443a"; ctx.fillRect(x+9,y+10,2,17); ctx.fillRect(x+21,y+10,2,17);
   ctx.fillStyle = PAL.gold; ctx.fillRect(x+14,y+14,4,5);
   if(furnLocked(k)){
-    ctx.fillStyle = "#22262b"; ctx.fillRect(x+13,y+17,6,6); // висячий замок — заперт
-    ctx.fillStyle = "#3a3f46"; ctx.fillRect(x+13,y+17,6,2);
+    ctx.fillStyle = PAL.iron[1]; ctx.fillRect(x+13,y+17,6,6); // висячий замок — заперт
+    ctx.fillStyle = PAL.iron[0]; ctx.fillRect(x+13,y+17,6,2);
     ctx.fillStyle = PAL.gold; ctx.fillRect(x+15,y+19,2,3);
   } else {
     ctx.fillStyle = "#16211c"; ctx.fillRect(x+7,y+11,18,3); // приоткрытая крышка — тёмный проём
@@ -493,17 +582,17 @@ function drawChest(o){
 /** Шкаф: два ряда ярких корешков; запертый — с замком на дверце, открытый — со щелью дверцы. */
 function drawShelf(o){
   const x = o.x*TILE, y = o.y*TILE + 8, k = o.x+","+o.y;
-  ctx.fillStyle = "#241a0f"; ctx.fillRect(x+5,y+5,22,22);
-  ctx.fillStyle = "#3a2a18"; ctx.fillRect(x+6,y+6,20,21);
+  ctx.fillStyle = PAL.woodDk; ctx.fillRect(x+5,y+5,22,22);
+  ctx.fillStyle = "#4a3620"; ctx.fillRect(x+6,y+6,20,21);
   ctx.fillStyle = "#2a1c0e"; ctx.fillRect(x+6,y+6,20,2);
-  const bk = ["#c05a4a","#4a7ba8","#7aa05a","#d0a84a"]; // яркие корешки
+  const bk = ["#d1604d","#4a7ba8","#7aa05a","#e8bd55","#a86ac0"]; // яркие корешки
   for(let s=0;s<2;s++){
     const sy = y+9+s*9;
     for(let i=0;i<4;i++){ ctx.fillStyle = bk[(hash(o.x+i,o.y,s*4+i)*4)|0]; ctx.fillRect(x+8+i*4, sy, 3, 7); }
     ctx.fillStyle = "#2a1c0e"; ctx.fillRect(x+6, sy+7, 20, 2);
   }
   if(furnLocked(k)){
-    ctx.fillStyle = "#22262b"; ctx.fillRect(x+14,y+17,5,6); // замок на дверце
+    ctx.fillStyle = PAL.iron[1]; ctx.fillRect(x+14,y+17,5,6); // замок на дверце
     ctx.fillStyle = PAL.gold; ctx.fillRect(x+16,y+19,1,3);
   } else {
     ctx.fillStyle = "#12100a"; ctx.fillRect(x+7,y+7,2,21); // приоткрытая дверца
@@ -511,8 +600,8 @@ function drawShelf(o){
 }
 
 /**
- * Человечек (игрок или NPC): контур, ботинки, пояс, лёгкий подпрыгивающий шаг.
- * Глаза смещаются по направлению взгляда (e.dir).
+ * Человечек (игрок или NPC): толстый тёмный контур, шагающие ноги, пояс,
+ * руки болтаются в противофазе, глаза смотрят по направлению взгляда.
  * @param {object} e сущность: x,y — тайловые координаты, dir, moving, anim (фаза шага)
  * @param {string} shirt цвет рубашки
  * @param {string} skin цвет кожи
@@ -522,29 +611,59 @@ function drawShelf(o){
 function drawHuman(e, shirt, skin, hair, isPlayer){
   const px = e.x*TILE, py = e.y*TILE;
   const step = e.moving ? Math.sin(e.anim||0)*2 : 0;
-  const bob = e.moving ? Math.abs(Math.sin(e.anim||0)) : 0;
-  const top = py - bob;
+  const bob  = e.moving ? Math.abs(Math.sin(e.anim||0)) : 0;
+  const top  = py - bob;
+  // тень «прижата» к ногам
   ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath();
   ctx.ellipse(px, py+11, 10, 4, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = "#33291d";
-  ctx.fillRect(px-5, top+2+step, 4, 9-step); ctx.fillRect(px+1, top+2-step, 4, 9+step);
-  ctx.fillStyle = "#241c12";
-  ctx.fillRect(px-5, top+9+step, 4, 2); ctx.fillRect(px+1, top+9-step, 4, 2);
-  ctx.fillStyle = "#1d160d"; ctx.fillRect(px-8, top-9, 16, 14); // контур туловища
-  ctx.fillStyle = shirt; ctx.fillRect(px-7, top-8, 14, 12);
-  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(px-7, top+1, 14, 3); // пояс
+  // ноги: штанина → ботинок со светлой подошвой; при замахе нога короче
+  ctx.fillStyle = PAL.outline;
+  ctx.fillRect(px-6, top+1+step, 5, 10-step); ctx.fillRect(px+1, top+1-step, 5, 10+step);
+  ctx.fillStyle = "#4a3a26";
+  ctx.fillRect(px-5, top+2+step, 3, 7-step); ctx.fillRect(px+2, top+2-step, 3, 7+step);
+  ctx.fillStyle = "#2e2418";
+  ctx.fillRect(px-6, top+9+step, 5, 3); ctx.fillRect(px+1, top+9-step, 5, 3); // ботинки
+  ctx.fillStyle = "#161009";
+  ctx.fillRect(px-6, top+11+step, 5, 1); ctx.fillRect(px+1, top+11-step, 5, 1); // подошва
+  // руки — лёгкий мах в противофазе ног, кисти чуть светлее кожи
+  ctx.fillStyle = PAL.outline;
+  ctx.fillRect(px-11, top-7-Math.round(step*.5), 4, 10); ctx.fillRect(px+7, top-7+Math.round(step*.5), 4, 10);
+  ctx.fillStyle = shirt;
+  ctx.fillRect(px-10, top-6-Math.round(step*.5), 2, 6); ctx.fillRect(px+8, top-6+Math.round(step*.5), 2, 6);
   ctx.fillStyle = skin;
-  ctx.fillRect(px-10, top-6+step*.5, 3, 8); ctx.fillRect(px+7, top-6-step*.5, 3, 8);
-  ctx.fillStyle = "#1d160d"; ctx.fillRect(px-7, top-21, 14, 14); // контур головы
+  ctx.fillRect(px-10, top+1-Math.round(step*.5), 2, 2); ctx.fillRect(px+8, top+1+Math.round(step*.5), 2, 2);
+  // туловище: контур, лицо рубашки, тень на дальней стороне, пояс
+  ctx.fillStyle = PAL.outline; ctx.fillRect(px-8, top-9, 16, 14);
+  ctx.fillStyle = shirt; ctx.fillRect(px-7, top-8, 14, 12);
+  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(px+3, top-8, 4, 12);
+  ctx.fillStyle = "rgba(0,0,0,.30)"; ctx.fillRect(px-7, top+1, 14, 3); // пояс
+  if(isPlayer){ ctx.fillStyle = PAL.gold; ctx.fillRect(px-1, top+1, 2, 3); } // пряжка у игрока
+  // голова: контур, кожа, полутень, волосы с висками
+  ctx.fillStyle = PAL.outline; ctx.fillRect(px-7, top-21, 14, 14);
   ctx.fillStyle = skin; ctx.fillRect(px-6, top-20, 12, 12);
+  ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(px+3, top-20, 3, 12);
   ctx.fillStyle = hair; ctx.fillRect(px-6, top-21, 12, 5);
-  if(isPlayer){ ctx.fillStyle = "#7a5a2e"; ctx.fillRect(px-8, top-22, 16, 3); ctx.fillRect(px-5, top-25, 10, 3); }
-  ctx.fillStyle = "#222";
-  const ex = e.dir==="left" ? -3 : e.dir==="right" ? 1 : -3;
-  const ey = e.dir==="up" ? -16 : -14;
-  if(e.dir!=="up"){ ctx.fillRect(px+ex, top+ey, 2, 2); ctx.fillRect(px+ex+4, top+ey, 2, 2); }
+  ctx.fillRect(px-6, top-16, 2, 5); ctx.fillRect(px+4, top-16, 2, 5); // виски
+  // глаза: два ряда — тёмная строка + светлый блик; смещаются по dir
+  const ex = e.dir==="left" ? -1 : e.dir==="right" ? 1 : 0;
+  if(e.dir!=="up"){
+    ctx.fillStyle = "#2a2016";
+    ctx.fillRect(px-3+ex, top-13, 2, 2); ctx.fillRect(px+1+ex, top-13, 2, 2);
+    ctx.fillStyle = "#f4ead8";
+    ctx.fillRect(px-3+ex, top-13, 1, 1); ctx.fillRect(px+1+ex, top-13, 1, 1);
+  } else {
+    ctx.fillStyle = hair; ctx.fillRect(px-5, top-15, 10, 3); // вид с затылка
+  }
+  if(isPlayer){ // широкополая шляпа следопыта
+    ctx.fillStyle = PAL.outline;
+    ctx.fillRect(px-8, top-22, 16, 3); ctx.fillRect(px-5, top-27, 10, 6);
+    ctx.fillStyle = "#6d5233";
+    ctx.fillRect(px-7, top-22, 14, 2); ctx.fillRect(px-4, top-26, 8, 5);
+    ctx.fillStyle = "#8a6a44";
+    ctx.fillRect(px-4, top-26, 8, 1); ctx.fillRect(px-7, top-22, 14, 1);
+    ctx.fillStyle = PAL.goldLo; ctx.fillRect(px-4, top-21, 8, 1); // лента
+  }
 }
-
 /**
  * Переносит текст по словам — для «пузырей» речи.
  * @param {string} t исходный текст

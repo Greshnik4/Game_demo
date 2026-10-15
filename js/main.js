@@ -92,8 +92,16 @@ function updateDoors(dt){
     if(!near) for(const n of NPCS)
       if(Math.hypot(n.x-(dx+1), n.y-(dy+.5)) < 3.4){ near = true; break; }
     const open = !doorLocked(dx,dy) && near;
-    const cur = doorAnim[k]||0, tgt = open?1:0;
-    if(cur!==tgt){ const step = dt*5; doorAnim[k] = cur + Math.max(-step, Math.min(step, tgt-cur)); }
+    doorsWish[k] = open;
+  }
+  // плавное открытие/закрытие дверей: ease-in-out (разгон и мягкая остановка),
+  // без рывка на последних кадрах; закрывается заметно медленнее, чем открывается
+  for(const k in doorsWish){
+    const open = doorsWish[k];
+    const sp = (open ? 3.0 : 2.2) * dt;
+    let a = doorAnim[k]||0;
+    if(open) a = Math.min(1, a + sp); else a = Math.max(0, a - sp);
+    if(!open && a <= 0) delete doorAnim[k]; else doorAnim[k] = a;
   }
 }
 function updateNPCs(dt, now){
