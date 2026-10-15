@@ -130,8 +130,11 @@ function updateNPCs(dt, now){
         if(n.state==="move") n.state = "wander";
         if(n.chore){ setFurnLocked(n.chore, Math.random()<0.5); n.chore=null; } // дошёл до своего хранилища — открыл/закрыл
       }
-      // wander: цель переодевается по таймеру (1.5-5 c) — случайная проходимая клетка у дома
-      if(n.state==="wander"){
+      // wander: новая цель по таймеру (1.5-5 c). Ключевое: NPC всегда «домашний» —
+      // цель берётся вокруг дома (не вокруг текущей позиции), иначе за долгий
+      // променад он уносится далеко от своих мест и не возвращается.
+      // Если путь ещё строится или впереди шаги — цель не подменяем.
+      if(n.state==="wander" && !(n.path && n.path.length) && !n.step){
         n.wanderT -= dt;
         if(n.wanderT <= 0){
           n.wanderT = 1.5 + Math.random()*3.5;

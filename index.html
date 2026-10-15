@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Веронт — пиксельная LLM-РПГ: деревня у старого тракта с живыми NPC.">
+<meta name="theme-color" content="#1e170d">
 <title>Веронт — текстовая LLM-РПГ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%231e170d'/%3E%3Ctext x='8' y='12' font-size='11' text-anchor='middle'%3E%E2%9A%92%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Handjet:wght@400..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -17,12 +21,12 @@
   <p id="hudGold" class="px">💰 0</p>
 </div>
 <div id="help"><b>WASD</b> — идти · <b>ЛКМ</b> — идти к точке / к NPC · клик по сундуку или шкафу рядом — содержимое · <b>E</b> — говорить · <b>J</b> — журнал · <b>Esc</b> — закрыть</div>
-<button id="btnSettings" class="iconbtn" title="Настройки LLM">⚙</button>
-<button id="btnJournal" class="iconbtn" title="Журнал квестов (J)">📜</button>
-<button id="btnInv" class="iconbtn" title="Инвентарь">🎒</button>
+<button id="btnSettings" class="iconbtn" title="Настройки LLM" aria-label="Настройки LLM">⚙</button>
+<button id="btnJournal" class="iconbtn" title="Журнал квестов (J)" aria-label="Журнал квестов">📜</button>
+<button id="btnInv" class="iconbtn" title="Инвентарь" aria-label="Инвентарь">🎒</button>
 
-<div id="journal" class="frame hidden">
-  <div id="journalHead" class="px">Журнал квестов<button id="journalClose" title="Закрыть">✕</button></div>
+<div id="journal" class="frame hidden" role="dialog" aria-label="Журнал квестов">
+  <div id="journalHead" class="px">Журнал квестов<button id="journalClose" title="Закрыть" aria-label="Закрыть журнал">✕</button></div>
   <div id="journalList"></div>
 </div>
 <div id="toast" class="hidden"></div>
@@ -32,33 +36,33 @@
 
 <div id="prompt" class="hidden">Нажми <span class="key">E</span> — поговорить с <b id="promptName"></b></div>
 
-<div id="chat" class="frame hidden">
+<div id="chat" class="frame hidden" role="dialog" aria-label="Диалог с персонажем">
   <div id="chatHead">
     <span id="chatName" class="px"></span><span id="chatRole"></span>
-    <button id="chatInvBtn" title="Инвентарь собеседника">🎒</button>
-    <button id="chatClose" title="Закрыть (Esc)">✕</button>
+    <button id="chatInvBtn" title="Инвентарь собеседника" aria-label="Инвентарь собеседника">🎒</button>
+    <button id="chatClose" title="Закрыть (Esc)" aria-label="Закрыть диалог">✕</button>
   </div>
   <div id="chatInv"></div>
   <div id="chatLog"></div>
   <div id="chatTyping" class="hidden">думает…</div>
   <form id="chatForm">
-    <input id="chatInput" placeholder="Скажи что-нибудь…" autocomplete="off" maxlength="500">
+    <input id="chatInput" placeholder="Скажи что-нибудь…" autocomplete="off" maxlength="500" aria-label="Текст сообщения">
     <button type="submit" class="btn px">Сказать</button>
   </form>
 </div>
 
 <div id="settings" class="hidden">
-  <div id="settingsBox" class="frame">
+  <div id="settingsBox" class="frame" role="dialog" aria-label="Подключение LLM">
     <h2 class="px">Подключение LLM</h2>
-    <label>Профиль</label>
+    <label for="setProfile">Профиль</label>
     <select id="setProfile"></select>
-    <label>Base URL (OpenAI-совместимый, напр. http://localhost:11434/v1)</label>
+    <label for="setBase">Base URL (OpenAI-совместимый, напр. http://localhost:11434/v1)</label>
     <input id="setBase">
-    <label>Модель (для Ollama — llama3.1, для OpenRouter — любая)</label>
+    <label for="setModel">Модель (для Ollama — llama3.1, для OpenRouter — любая)</label>
     <input id="setModel">
-    <label>API-ключ (не нужен для локального Ollama)</label>
+    <label for="setKey">API-ключ (не нужен для локального Ollama)</label>
     <input id="setKey" type="password">
-    <label>Уровень размышлений модели</label>
+    <label for="setReasoning">Уровень размышлений модели</label>
     <select id="setReasoning">
       <option value="">по умолчанию модели</option>
       <option value="none">выключен</option>
@@ -76,8 +80,8 @@
 </div>
 
 <div id="invWin" class="hidden">
-  <div id="invBox" class="frame">
-    <button id="invClose" title="Закрыть (Esc)">✕</button>
+  <div id="invBox" class="frame" role="dialog" aria-label="Инвентарь">
+    <button id="invClose" title="Закрыть (Esc)" aria-label="Закрыть инвентарь">✕</button>
     <div id="invCols">
       <div class="invSide">
         <h4 id="invOtherName"></h4>
